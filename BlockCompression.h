@@ -22,12 +22,14 @@ private:
 	void		makeInterpolation_UNORM(uint8_t red_0, uint8_t red_1, float* lookupTable);
 	void		calculateClosest(uint8_t block[16], float lookupTable[8], uint8_t* blockIndex);
 	uint64_t	transformTo64Bits(uint8_t  indexTable[16], uint8_t m_red_0, uint8_t m_red_1);
+	void		TransformFrom64Bits(uint64_t p_bc4, uint8_t* m_indexTable, uint8_t & m_red_0, uint8_t & m_red_1);
 
 public:
 	BlockCompression();
 	~BlockCompression();
 
 	uint64_t	compressBC4(uint8_t block[16]);
+	uint8_t*	decompressBC4(uint64_t bc4);
 };
 
 #endif // !_BLOCKCOMPRESSION_

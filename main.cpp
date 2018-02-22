@@ -11,12 +11,17 @@
 #include "BlockCompression.h"
 #include <stdio.h>
 
-uint8_t	block1[16] = { 10, 25, 63, 100, 10, 12, 30, 125, 14, 101, 215, 13, 14, 12 , 200, 189 };
+uint8_t	block1[16] = { 101, 101, 102, 103, 104, 104, 105, 105, 106, 107, 107, 108, 109, 110 , 110, 111 };
 
 int main(int argc, char *argv[]) {
-	
+
 	BlockCompression BC4;
-	BC4.compressBC4(block1);
+
+	printf("Compress Block\n");
+	uint64_t compressBlock = BC4.compressBC4(block1);
+
+	printf("\nDecompress Block\n");
+	uint8_t* decompressBlock = BC4.decompressBC4(compressBlock);
 
 	getchar();
 	return 0;

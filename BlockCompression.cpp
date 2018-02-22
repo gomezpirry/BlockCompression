@@ -25,55 +25,7 @@ BlockCompression::BlockCompression(){
 BlockCompression::~BlockCompression() {
 }
 
-/** Compress a 4x4 block using BC4 algorithm
-\param    block    4x4 block for compressing
-*/
-uint64_t BlockCompression::compressBC4(uint8_t block[16]) {
 
-	uint64_t	bc4 = 0;
-
-	uint8_t		red_0;
-	uint8_t		red_1;
-		
-	float		lookupTable[8];			///< reference color table 
-	uint8_t		indexTable[16];			///< Index of the reference colors
-	
-	/// Calculate de value of red_0 and red_1
-	calculateEndpoints(block, red_0, red_1);
-
-	/// make the interpolation and set up lookup table
-	makeInterpolation_UNORM(red_0, red_1, lookupTable);
-
-
-/*///////////////////////////////////////////////////
-	printf("lookup Color table\n");
-	for (int i = 0; i < 8; i++)
-		printf("index[%d]:\t%f\n", i, lookupTable[i]);
-//////////////////////////////////////////////////*/
-
-	
-	/// Calculate the matching values of the color in the lookup table
-	calculateClosest(block, lookupTable, indexTable);
-
-
-/*////////////////////////////////////////////////////////
-	printf("\nIndex values\n");
-	for (int i = 0; i < 16; i++)
-		printf("pixel[%d]: %f - index:\t%d\n", i, block[i] / 255.0f, indexTable[i]);
-//////////////////////////////////////////////////////////////*/
-
-
-	/// Transform the block in  64 bits 
-	bc4 = transformTo64Bits(indexTable, red_0, red_1);
-
-
-/*/////////////////////////////////////////////////////
-	printf("\nbc4 64 bits  \n");
-	std::cout << "bc4: " << std::bitset<64>(bc4) << "\n";
-///////////////////////////////////////////*/
-
-	return bc4;
-}
 
 
 /** Calculate the minimum  and maximum value in block for interpolation
@@ -173,7 +125,7 @@ uint64_t BlockCompression::transformTo64Bits(uint8_t m_indexTable[16], uint8_t m
 	
 	uint64_t m_bc4 = 0;
 	
-	//// Insert red p to red a
+	//// Insert index from red p to red a
 	for (int index = 15; index >= 0; index--) {
 		m_bc4 <<= 3;
 		m_bc4 |= (m_indexTable[index] & 7);
@@ -187,4 +139,77 @@ uint64_t BlockCompression::transformTo64Bits(uint8_t m_indexTable[16], uint8_t m
 		
 	return m_bc4;
 
+}
+
+
+void BlockCompression::TransformFrom64Bits(uint64_t p_bc4, uint8_t* m_indexTable, uint8_t &m_red_0, uint8_t &m_red_1) {
+
+	m_red_0 = p_bc4 & 0xFF;
+	m_red_1 = (p_bc4 >> 8) & 0xFF;
+
+	for (int index = 0; index < 16; index++) {
+		m_indexTable[index] = (p_bc4 >> (3 * index + 16)) & 7;
+	}
+	
+}
+
+
+/** Compress a 4x4 block using BC4 algorithm
+\param    block    4x4 block for compressing
+*/
+uint64_t BlockCompression::compressBC4(uint8_t block[16]) {
+
+	uint64_t	c_bc4 = 0;
+
+	uint8_t		c_red_0;											///< red_0 value
+	uint8_t		c_red_1;											///< red_1 value
+
+	float		c_lookupTable[8];									///< reference color table 
+	uint8_t		c_indexTable[16];									///< Index of the reference colors
+											
+	calculateEndpoints(block, c_red_0, c_red_1);					///< Calculate de value of red_0 and red_1
+		
+	makeInterpolation_UNORM(c_red_0, c_red_1, c_lookupTable);		///< make the interpolation and set up lookup table
+		
+	calculateClosest(block, c_lookupTable, c_indexTable);			///< Calculate the matching values of the color in the lookup table
+		
+	c_bc4 = transformTo64Bits(c_indexTable, c_red_0, c_red_1);		///< Transform the block in  64-bit int 
+
+	/*//////////////////////////////////////////////////////*/
+	std::cout << "bc4: " << std::bitset<64>(c_bc4) << "\n";
+	///////////////////////////////////////////*/
+
+	return c_bc4;
+}
+
+/** Decompress a 4x4 block using BC4 algorithm
+\param    bc4    unsigned int of 64 bit with bc4 compression
+*/
+uint8_t* BlockCompression::decompressBC4(uint64_t p_bc4) {
+
+	uint8_t		d_block[16];
+
+	uint8_t		d_red_0;											///< red_0 value (from 64-bit int)
+	uint8_t		d_red_1;											///< red_1 value (from 64-bit int)
+
+	uint8_t		d_indexTable[16];									///< decompress color indices for each texel in block
+	float		d_lookupTable[8];									///< reference color table 
+
+	TransformFrom64Bits(p_bc4, d_indexTable, d_red_0, d_red_1);		///< Get red_0, red_1 and reference color index from 64 bits int
+
+	makeInterpolation_UNORM(d_red_0, d_red_1, d_lookupTable);		///< Get reference colors 
+
+	/// Assing values from reference colors
+	for (size_t index = 0; index < 16; index++) {
+		d_block[index] = static_cast<uint8_t>(d_lookupTable[d_indexTable[index]] * 255.0f);
+	}
+
+	/*///////////////////////////////////////////////////*/
+	printf("block: {");
+	for (size_t index = 0; index < 16; index++)
+		printf("%d ", d_block[index]);
+	printf("}");
+	/*///////////////////////////////////////////////////*/
+
+	return d_block;
 }
